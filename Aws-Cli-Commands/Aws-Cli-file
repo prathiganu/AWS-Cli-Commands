@@ -1,0 +1,147 @@
+Mount an EBS Volume to EC2 Linux
+This tutorial will teach you how to attach and mount an EBS volume to ec2 Linux instances.
+
+Follow the steps given below carefully for the setup.
+
+Step 1: Head over to EC2 –> Volumes and create a new volume of your preferred size and type.
+
+Create EBS volume to attach to ec2 instance
+Note: Make sure the EBS volume and the instance are in the same zone.
+
+Step 2: Select the created volume, right-click and select the “attach volume” option.
+
+Step 3: Select the ec2 instance from the instance text box as shown below.
+
+attach ebs volume
+Step 4: Now, login to your ec2 instance and list the available disks using the following command.
+
+ lsblk
+The above command will list the disk you attached to your instance.
+
+Step 5: Check if the volume has any data using the following command.
+
+sudo file -s /dev/xvdf
+If the above command output shows “/dev/xvdf: data“, it means your volume is empty.
+
+Step 6: Format the volume to the ext4 filesystem using the following command.
+
+sudo mkfs -t ext4 /dev/xvdf
+Alternatively, you can also use the xfs format. You have to use either ext4 or xfs.
+
+ sudo mkfs -t xfs /dev/xvdf
+Step 7: Create a directory of your choice to mount our new ext4 volume. I am using the name “newvolume“. You can name it something meaningful to you.
+
+sudo mkdir /newvolume
+Step 8: Mount the volume to “newvolume” directory using the following command.
+
+sudo mount /dev/xvdf /newvolume/
+Step 9: cd into newvolume directory and check the disk space to validate the volume mount.
+
+cd /newvolume
+df -h .
+The above command should show the free space in the newvolume directory.
+
+To unmount the volume, use the unmount command as shown below..
+
+sudo umount /dev/xvdf
+Automount EBS Volume on Reboot
+By default on every reboot, the EBS volumes other than the root volume will get unmounted. To enable automount, you need to make an entry in the /etc/fstab file.
+
+Follow the steps given below to automount the EBS volume to the ec2 instance.
+
+Step 1: Back up the /etc/fstab file.
+
+sudo cp /etc/fstab /etc/fstab.bak
+Step 2: Open /etc/fstab file and make an entry in the following format.
+
+device_name mount_point file_system_type fs_mntops fs_freq fs_passno
+For example,
+
+/dev/xvdf       /newvolume   ext4    defaults,nofail        0       0
+Step 3: Execute the following command to check if the fstab file has any errors.
+
+sudo mount -a
+If the above command shows no error, it means your fstab entry is valid.
+
+Now, on every reboot, the extra EBS volumes will get mounted automatically.
+
+
+
+
+
+
+
+
+
+
+Extend the volume in AWS root volume
+
+lsblk
+sudo growpart /dev/xvda 1
+
+
+
+
+
+
+
+1  cat /etc/*release*
+    2  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    3  unzip awscliv2.zip
+    4  sudo ./aws/install
+    5  aws
+    6  aws --version
+    7  aws configure
+    8  aws ec2 describe-instances
+
+
+   11  aws ec2 describe-instances --query 'Instances[*].[InstanceId]' --output text
+
+   13  aws ec2 describe-instances
+
+   16  aws ec2 describe-instances --query "Reservations[*].Instances[*].[InstanceId]"
+   17  aws ec2 describe-instances --query "Reservations[*].Instances[*].[ImageId]"
+   18  aws ec2 describe-instances --query "Reservations[*].Instances[*].[ImageId]" --output text
+   19  aws ec2 describe-instances --query "Reservations[*].Instances[*].[ImageId].{PublicIP:PublicIpAddress" --output text
+   20  aws ec2 describe-instances --query "Reservations[*].Instances[*].[ImageId].{PublicIP:PublicIpAddress}" --output text
+   21  aws ec2 describe-instances --query "Reservations[*].Instances[*].{PublicIP:PublicIpAddress}" --output text
+   22  aws ec2 describe-instances --query "Reservations[*].Instances[*].{PublicIP:PublicIpAddress,status}" --output text
+   23  aws ec2 describe-instances --query "Reservations[*].Instances[*].{PublicIP:PublicIpAddress,status:status.name}" --output text
+   24  aws ec2 describe-instances --query "Reservations[*].Instances[*].{PublicIP:PublicIpAddress,Name:Tags[?Key=='Name']|[0].Value,Status:State.Name}" --output text
+   25  aws ec2 describe-instances --query "Reservations[*].Instances[*].{PublicIP:PublicIpAddress,Name:Tags[?Key=='Name']|[0].Value,Status:State.Name,Type:InstanceType}" --output text
+   26  aws ec2 describe-instances --query "Reservations[*].Instances[*].{PublicIP:PublicIpAddress,Name:Tags[?Key=='Name']|[0].Value,Status:State.Name,Type:InstanceType,VpcId:VpcId}" --output text
+   27  aws ec2 describe-instances --query "Reservations[*].Instances[*].{PublicIP:PublicIpAddress,Name:Tags[?Key=='Name']|[0].Value,Status:State.Name,Type:InstanceType,VpcId:VpcId}" --output table
+
+
+instance_id=$(aws ec2 run-instances --image-id ami-053b0d53c279acc90 --instance-type t2.micro --key-name slave2  --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=demo2}]' --query 'Instances[*].[InstanceId]' --output text)
+
+
+
+Step1: Launch an EC2 Instance and save the instance ID into an environment variable
+
+instance_id=$(aws ec2 run-instances --image-id ami-55ef662f --instance-type t2.micro --key-name MyKeyPair1 --user-data file://userdata.txt  --query 'Instances[*].[InstanceId]' --output text )
+
+
+Step 2: Check the user data worked and the web server is running by typing the web server IP on a browser and verifying you see ÒHello WorldÓ
+
+Step 3: Create an image from that instance ID and save the image id to a variable image_id
+image_id=$(aws ec2 create-image --instance-id $instance_id --name "My server" --description "An AMI for my webserver" --query ImageId --output text)
+
+step 4: use that image to launch an instance
+aws ec2 run-instances --image-id $image_id --instance-type t2.micro --key-name MyKeyPair1   --query 'Instances[*].[InstanceId]' --output text 
+i-03c84ceb5391371b6
+
+
+
+
+aws ec2 run-instances --image-id $image_id --count 1 --instance-type t2.micro --key-name MyKey1 --security-group-ids sg-062b30d45273965cf --subnet-id subnet-06b6e3c6d00fe73f1 --query 'Instances[*].[InstanceId]' --output text
+
+
+instance_id=$(aws ec2 run-instances --image-id ami-0557a15b87f6559cf --count 1 --instance-type t2.micro --key-name MyKey1 --security-group-ids sg-062b30d45273965cf --subnet-id subnet-06b6e3c6d00fe73f1 --query 'Instances[*].[InstanceId]' --output text)
+
+
+
+
+
+
+
